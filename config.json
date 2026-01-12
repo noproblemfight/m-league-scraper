@@ -1,0 +1,126 @@
+{
+    "season_start_year": 2025,
+    "urls": [
+        "https://m-league.jp/games/?mly=2025&mlm=9#schedule",
+        "https://m-league.jp/games/?mly=2025&mlm=10#schedule",
+        "https://m-league.jp/games/?mly=2025&mlm=11#schedule",
+        "https://m-league.jp/games/?mly=2025&mlm=12#schedule",
+        "https://m-league.jp/games/?mly=2026&mlm=1#schedule",
+        "https://m-league.jp/games/?mly=2026&mlm=2#schedule",
+        "https://m-league.jp/games/?mly=2026&mlm=3#schedule",
+        "https://m-league.jp/games/?mly=2026&mlm=4#schedule",
+        "https://m-league.jp/games/?mly=2026&mlm=5#schedule"
+    ],
+    "spreadsheet_name": "Mリーグ独自ドラフト集計",
+    "output_filename": "m-league_all_results.csv",
+    "service_account_file": "service_account.json",
+    "draft_teams": {
+        "ちーむいしい": [
+            "瑞原明奈",
+            "伊達朱里紗",
+            "白鳥翔",
+            "阿久津翔太"
+        ],
+        "ちーむくぼでら": [
+            "園田賢",
+            "鈴木優",
+            "日向藍子",
+            "竹内元太"
+        ],
+        "ちーむふるかわ": [
+            "堀慎吾",
+            "佐々木寿人",
+            "石井一馬",
+            "黒沢咲"
+        ],
+        "ちーむくらはし": [
+            "仲林圭",
+            "渡辺太",
+            "逢川恵夢",
+            "渋川難波"
+        ],
+        "ちーむとみおか": [
+            "中田花奈",
+            "中田花奈",
+            "中田花奈",
+            "中田花奈"
+        ]
+    },
+    "team_colors": {
+        "ちーむいしい": {
+            "red": 1,
+            "green": 0.8,
+            "blue": 0.8
+        },
+        "ちーむくぼでら": {
+            "red": 0.8,
+            "green": 0.8,
+            "blue": 1
+        },
+        "ちーむふるかわ": {
+            "red": 0.8,
+            "green": 1,
+            "blue": 0.8
+        },
+        "ちーむくらはし": {
+            "red": 1,
+            "green": 1,
+            "blue": 0.8
+        },
+        "ちーむとみおか": {
+            "red": 0.9,
+            "green": 0.8,
+            "blue": 1
+        }
+    },
+    "special_rules": {
+        "team_bonus": {
+            "ちーむとみおか": 1200.0
+        },
+        "player_bonus": {
+            "中田花奈": 300.0
+        }
+    },
+    "m_league_players": [
+        "園田賢",
+        "鈴木たろう",
+        "浅見真紀",
+        "渡辺太",
+        "二階堂亜樹",
+        "勝又健志",
+        "内川幸太郎",
+        "永井孝典",
+        "岡田紗佳",
+        "渋川難波",
+        "堀慎吾",
+        "阿久津翔太",
+        "佐々木寿人",
+        "高宮まり",
+        "伊達朱里紗",
+        "滝沢和典",
+        "多井隆晴",
+        "白鳥翔",
+        "松本吉弘",
+        "日向藍子",
+        "茅森早香",
+        "醍醐大",
+        "浅井堂岐",
+        "竹内元太",
+        "萩原聖人",
+        "瀬戸熊直樹",
+        "黒沢咲",
+        "本田朋広",
+        "小林剛",
+        "瑞原明奈",
+        "鈴木優",
+        "仲林圭",
+        "鈴木大介",
+        "中田花奈",
+        "下石戟",
+        "東城りお",
+        "石井一馬",
+        "三浦智博",
+        "逢川恵夢",
+        "HIRO柴田"
+    ]
+}
