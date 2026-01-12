@@ -12,6 +12,7 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 # gspread-formattingに必要な部品をすべてインポート
 from gspread_formatting import CellFormat, Color, TextFormat, format_cell_range, format_cell_ranges
+import mleague_viewer
 
 import os
 import re
@@ -448,6 +449,22 @@ def run_scraper(log_callback=print):
 
             except Exception as e:
                 log_callback(f"  STEP 4でエラーが発生しました: {e}\n")
+
+        # === STEP 5: Webページ生成 ===
+        if all_player_data:
+            try:
+                log_callback("STEP 5: Webページ(index.html)を生成します...")
+                
+                # 色設定の構築
+                team_colors = {}
+                for team_name, color_data in TEAM_COLORS_CONFIG.items():
+                    team_colors[team_name] = color_data
+                
+                mleague_viewer.generate_html(all_player_data, DRAFT_TEAMS, team_colors)
+                log_callback("STEP 5: 生成が完了しました。\n")
+                
+            except Exception as e:
+                log_callback(f"  STEP 5でエラーが発生しました: {e}\n")
 
         log_callback("すべての処理が完了しました。")
 
