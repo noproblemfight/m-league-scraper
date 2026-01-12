@@ -42,25 +42,24 @@ jobs:
         
         # 変更があるか確認
         if [ -f index.html ]; then
-          # gh-pagesブランチがない場合はorphanブランチとして作成
+          # 1. 生成された index.html を退避して、元のファイルは削除する (ここが修正ポイント)
+          mkdir -p /tmp/public
+          cp index.html /tmp/public/
+          rm index.html
+
+          # 2. gh-pages ブランチに切り替え (なければ作る)
           git fetch origin gh-pages || true
           if git rev-parse --verify origin/gh-pages >/dev/null 2>&1; then
              git checkout gh-pages
-             git checkout - . # index.htmlをリセットしないように
           else
              git checkout --orphan gh-pages
              git rm -rf .
           fi
 
-          # シンプルな戦略: 生成された index.html を退避 -> ブランチ切り替え -> 戻す -> Push
-          mkdir /tmp/public
-          cp index.html /tmp/public/
-          
-          git fetch origin gh-pages || true
-          git checkout gh-pages || git checkout --orphan gh-pages
-          
+          # 3. ファイルを戻す
           cp /tmp/public/index.html .
           
+          # 4. Commit & Push
           git add index.html
           git commit -m "Update dashboard: $(date)" || echo "No changes to commit"
           git push origin gh-pages
