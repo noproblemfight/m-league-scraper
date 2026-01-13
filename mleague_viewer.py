@@ -4,7 +4,7 @@ from datetime import datetime
 from collections import defaultdict
 
 def generate_html(all_player_data, draft_teams, team_colors):
-    # --- データ集計 ---
+    # --- 1. データ集計 (最終スコア) ---
     player_stats = defaultdict(lambda: {'total_score': 0.0, 'game_count': 0, 'rank_sum': 0})
     for _, player_name, score, rank in all_player_data:
         player_stats[player_name]['total_score'] += score
@@ -16,28 +16,48 @@ def generate_html(all_player_data, draft_teams, team_colors):
         for member in members:
             team_totals[team] += player_stats[member]['total_score']
 
-    # 特別ルール適用 (configから読み直すのが理想だが、ここでは引数で渡されていないため簡易的に実装するか、
-    # あるいはscraper側ですでに計算された値を渡すのがベター。
-    # 今回は表示用なので、configを再度読み込む形にするのが安全)
-    try:
-        config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.json')
-        with open(config_path, 'r', encoding='utf-8') as f:
-            config = json.load(f)
-            special_rules = config.get('special_rules', {})
-            
-            # チームボーナス
-            for team, bonus in special_rules.get('team_bonus', {}).items():
-                if team in team_totals:
-                    team_totals[team] += bonus
-            
-            # 個人ボーナス (表示用スコア計算のため)
-            player_bonus = special_rules.get('player_bonus', {})
-    except:
-        player_bonus = {}
-
     sorted_teams = sorted(team_totals.items(), key=lambda x: x[1], reverse=True)
     
-    # --- HTML生成 ---
+    # --- 2. 時系列データの作成 (グラフ用) ---
+    # 試合ごとにグループ化
+    games_map = defaultdict(list)
+    for game_title, player_name, score, rank in all_player_data:
+        games_map[game_title].append({'name': player_name, 'score': score})
+    
+    # 時系列変数の初期化
+    history_dates = ['開幕前']
+    team_history = {team: [0.0] for team in draft_teams.keys()}
+    current_team_scores = {team: 0.0 for team in draft_teams.keys()}
+    
+    # 試合順に処理 (games_mapは挿入順＝時系列順と仮定)
+    for game_title, players in games_map.items():
+        history_dates.append(game_title.split(' ')[0]) # 日付部分だけ簡易抽出
+        
+        # この試合での変動を計算
+        for p in players:
+            # どのチームの選手か探す
+            for team, members in draft_teams.items():
+                if p['name'] in members:
+                    current_team_scores[team] += p['score']
+                    break
+        
+        # 履歴に追加
+        for team in draft_teams.keys():
+            team_history[team].append(round(current_team_scores[team], 1))
+
+    # --- 3. サンプルチーム用データ (全選手リスト) ---
+    all_players_info = []
+    # すでに集計した player_stats から作成
+    for player_name, stats in player_stats.items():
+        all_players_info.append({
+            'name': player_name,
+            'score': round(stats['total_score'], 1)
+        })
+    # スコア順にソート (選びやすくするため)
+    all_players_info.sort(key=lambda x: x['score'], reverse=True)
+
+
+    # --- 4. HTML生成 ---
     now_str = datetime.now().strftime('%Y/%m/%d %H:%M')
     
     html = f"""
@@ -85,57 +105,70 @@ def generate_html(all_player_data, draft_teams, team_colors):
             margin-top: 5px;
         }}
         
+        section {{
+            margin-bottom: 60px;
+        }}
+        h2 {{
+            border-left: 4px solid var(--accent);
+            padding-left: 10px;
+            margin-bottom: 20px;
+        }}
+
         /* チームランキング */
         .rankings-grid {{
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
             gap: 20px;
-            margin-bottom: 40px;
         }}
         .team-card {{
             background-color: var(--card-bg);
             border-radius: 12px;
             padding: 20px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-            transition: transform 0.2s;
             border-top: 4px solid transparent;
         }}
-        .team-card:hover {{
-            transform: translateY(-5px);
-        }}
-        .team-rank {{
-            font-size: 1.2rem;
-            font-weight: bold;
-            color: var(--text-sub);
-        }}
-        .team-name {{
-            font-size: 1.5rem;
-            font-weight: bold;
-            margin: 10px 0;
-        }}
-        .team-score {{
-            font-size: 2.5rem;
-            font-weight: bold;
-            text-align: right;
-            color: var(--text-main);
-        }}
-        .team-members {{
-            margin-top: 15px;
-            font-size: 0.9rem;
-            color: var(--text-sub);
-            border-top: 1px solid #333;
-            padding-top: 10px;
-        }}
+        .team-rank {{ font-size: 1.2rem; font-weight: bold; color: var(--text-sub); }}
+        .team-name {{ font-size: 1.5rem; font-weight: bold; margin: 10px 0; }}
+        .team-score {{ font-size: 2.5rem; font-weight: bold; text-align: right; }}
+        .team-members {{ margin-top: 15px; font-size: 0.9rem; color: var(--text-sub); border-top: 1px solid #333; padding-top: 10px; }}
 
         /* グラフエリア */
         .chart-container {{
             background-color: var(--card-bg);
             border-radius: 12px;
             padding: 20px;
-            margin-bottom: 40px;
             height: 400px;
             position: relative;
         }}
+
+        /* サンプルチーム (My Team) */
+        .sample-team-container {{
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            padding: 20px;
+        }}
+        .selectors-grid {{
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }}
+        select {{
+            width: 100%;
+            padding: 10px;
+            background-color: #333;
+            color: white;
+            border: 1px solid #555;
+            border-radius: 6px;
+            font-size: 1rem;
+        }}
+        .my-team-result {{
+            text-align: center;
+            border-top: 1px solid #444;
+            padding-top: 20px;
+        }}
+        .my-total-label {{ font-size: 1.2rem; color: var(--text-sub); }}
+        .my-total-score {{ font-size: 3rem; font-weight: bold; color: var(--accent); }}
 
         /* 個人成績テーブル */
         .table-container {{
@@ -144,33 +177,14 @@ def generate_html(all_player_data, draft_teams, team_colors):
             padding: 20px;
             overflow-x: auto;
         }}
-        table {{
-            width: 100%;
-            border-collapse: collapse;
-            white-space: nowrap;
-        }}
-        th, td {{
-            padding: 12px 15px;
-            text-align: left;
-            border-bottom: 1px solid #333;
-        }}
-        th {{
-            color: var(--accent);
-            font-weight: bold;
-        }}
-        tr:hover {{
-            background-color: #2a2a2a;
-        }}
+        table {{ width: 100%; border-collapse: collapse; white-space: nowrap; }}
+        th, td {{ padding: 12px 15px; text-align: left; border-bottom: 1px solid #333; }}
+        th {{ color: var(--accent); font-weight: bold; }}
+        tr:hover {{ background-color: #2a2a2a; }}
         .positive {{ color: #4CAF50; }}
         .negative {{ color: #FF5252; }}
 
-        /* フッター */
-        footer {{
-            text-align: center;
-            margin-top: 40px;
-            color: var(--text-sub);
-            font-size: 0.8rem;
-        }}
+        footer {{ text-align: center; margin-top: 40px; color: var(--text-sub); font-size: 0.8rem; }}
     </style>
 </head>
 <body>
@@ -180,19 +194,18 @@ def generate_html(all_player_data, draft_teams, team_colors):
             <div class="timestamp">Last Updated: {now_str}</div>
         </header>
 
+        <!-- 1. チームランキング -->
         <section>
-            <h2 style="border-left: 4px solid var(--accent); padding-left: 10px;">Team Ranking</h2>
+            <h2>Team Ranking</h2>
             <div class="rankings-grid">
     """
 
     for i, (team, score) in enumerate(sorted_teams, 1):
         color_data = team_colors.get(team, {'red': 1, 'green': 1, 'blue': 1})
-        # RGB値をCSS用に変換 (少し暗くして背景に馴染ませるか、アクセントにするか)
-        # ここではborder-topの色として使用
         r, g, b = int(color_data['red']*255), int(color_data['green']*255), int(color_data['blue']*255)
         border_color = f"rgb({r},{g},{b})"
         
-        members_str = " / ".join(draft_teams[team])
+        members_str = " / ".join(draft_teams.get(team, []))
         score_class = "positive" if score >= 0 else "negative"
         score_fmt = f"{score:+.1f}"
 
@@ -209,15 +222,35 @@ def generate_html(all_player_data, draft_teams, team_colors):
             </div>
         </section>
 
+        <!-- 2. スコア推移グラフ -->
         <section>
-            <h2 style="border-left: 4px solid var(--accent); padding-left: 10px;">Score History</h2>
+            <h2>Score History</h2>
             <div class="chart-container">
-                <canvas id="scoreChart"></canvas>
+                <canvas id="historyChart"></canvas>
             </div>
         </section>
 
+        <!-- 3. サンプルチーム作成 -->
         <section>
-            <h2 style="border-left: 4px solid var(--accent); padding-left: 10px;">Player Stats</h2>
+            <h2>Create Your Sample Team</h2>
+            <div class="sample-team-container">
+                <p style="color: #aaa; margin-bottom: 15px;">好きな選手を4人選んで、合計スコアを計算できます。</p>
+                <div class="selectors-grid">
+                    <select id="p1" onchange="calculateMyTeam()"><option value="0">Select Player 1</option></select>
+                    <select id="p2" onchange="calculateMyTeam()"><option value="0">Select Player 2</option></select>
+                    <select id="p3" onchange="calculateMyTeam()"><option value="0">Select Player 3</option></select>
+                    <select id="p4" onchange="calculateMyTeam()"><option value="0">Select Player 4</option></select>
+                </div>
+                <div class="my-team-result">
+                    <div class="my-total-label">Estimated Total Score</div>
+                    <div class="my-total-score" id="myScore">0.0</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 4. 個人成績 -->
+        <section>
+            <h2>Player Stats</h2>
             <div class="table-container">
                 <table>
                     <thead>
@@ -233,21 +266,21 @@ def generate_html(all_player_data, draft_teams, team_colors):
                     <tbody>
     """
 
-    # 個人成績のリスト作成
     player_data_list = []
-    # チーム所属選手のみを対象にする
+    # チーム所属選手のみを対象 (configにあるチームのメンバー)
     valid_players = set()
     for players in draft_teams.values():
         valid_players.update(players)
 
+    # グラフやサンプルチーム用に全選手が必要な場合もあるが、Rankingはドラフト選手メインで出す
     for player, stats in player_stats.items():
         if player not in valid_players:
             continue
             
-        final_score = stats['total_score'] + player_bonus.get(player, 0.0)
+        final_score = stats['total_score']
         avg_rank = stats['rank_sum'] / stats['game_count'] if stats['game_count'] > 0 else 0
         
-        # 所属チームを探す
+        # 所属チーム
         team_name = "Unknown"
         for t, members in draft_teams.items():
             if player in members:
@@ -262,7 +295,6 @@ def generate_html(all_player_data, draft_teams, team_colors):
             'avg_rank': avg_rank
         })
 
-    # スコア順にソート
     player_data_list.sort(key=lambda x: x['score'], reverse=True)
 
     for i, p in enumerate(player_data_list, 1):
@@ -290,59 +322,100 @@ def generate_html(all_player_data, draft_teams, team_colors):
     </div>
 
     <script>
-        // グラフ描画用データ (Scraperから渡すのが難しいので、ここでは簡易的にJSに埋め込むデータを生成する必要がありますが、
-        // 過去の推移データを持っていないと描画できません。
-        // 今回は「現在のトータルスコア」の棒グラフ、または簡易的な実装としておきます。
-        // ※本来は daily_history.csv などを保存して読み込む必要がありますが、
-        //   今回は要件をシンプルにするため、チームごとの現在スコア比較チャートにします。
-        
-        const ctx = document.getElementById('scoreChart').getContext('2d');
-        const labels = [];
-        const data = [];
-        const bgColors = [];
-        const borderColors = [];
+        // --- データ埋め込み ---
     """
+
+    # JS用: グラフデータ
+    html += f"const labels = {json.dumps(history_dates, ensure_ascii=False)};\n"
+    html += "const datasets = [\n"
     
-    # チャート用データ生成
-    for team, score in sorted_teams:
+    for team, scores in team_history.items():
         color_data = team_colors.get(team, {'red': 1, 'green': 1, 'blue': 1})
         r, g, b = int(color_data['red']*255), int(color_data['green']*255), int(color_data['blue']*255)
         
-        html += f"labels.push('{team}');\n"
-        html += f"data.push({score});\n"
-        html += f"bgColors.push('rgba({r}, {g}, {b}, 0.5)');\n"
-        html += f"borderColors.push('rgba({r}, {g}, {b}, 1)');\n"
+        html += "{\n"
+        html += f"  label: '{team}',\n"
+        html += f"  data: {scores},\n"
+        html += f"  borderColor: 'rgba({r}, {g}, {b}, 1)',\n"
+        html += f"  backgroundColor: 'rgba({r}, {g}, {b}, 1)',\n"
+        html += "  borderWidth: 2,\n"
+        html += "  tension: 0.1,\n"
+        html += "  pointRadius: 0,\n"
+        html += "  pointHoverRadius: 5\n"
+        html += "},\n"
+    
+    html += "];\n"
+
+    # JS用: 選手データ (サンプルチーム用)
+    html += f"const playerMap = {json.dumps(all_players_info, ensure_ascii=False)};\n"
 
     html += """
-        const myChart = new Chart(ctx, {
-            type: 'bar',
+        // --- グラフ描画 ---
+        const ctx = document.getElementById('historyChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'line',
             data: {
                 labels: labels,
-                datasets: [{
-                    label: 'Total Score',
-                    data: data,
-                    backgroundColor: bgColors,
-                    borderColor: borderColors,
-                    borderWidth: 1
-                }]
+                datasets: datasets
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
                 scales: {
                     y: {
-                        beginAtZero: true,
-                        grid: { color: '#333' }
+                        grid: { color: '#333' },
+                        ticks: { color: '#aaa' }
                     },
                     x: {
-                        grid: { display: false }
+                        grid: { display: false },
+                        ticks: { color: '#aaa' }
                     }
                 },
                 plugins: {
-                    legend: { display: false }
+                    legend: {
+                        labels: { color: '#fff' }
+                    }
                 }
             }
         });
+
+        // --- サンプルチーム計算 ---
+        const selects = [
+            document.getElementById('p1'),
+            document.getElementById('p2'),
+            document.getElementById('p3'),
+            document.getElementById('p4')
+        ];
+
+        // セレクトボックス初期化
+        playerMap.forEach(p => {
+            const optionText = `${p.name} (${p.score > 0 ? '+' : ''}${p.score})`;
+            selects.forEach(sel => {
+                const opt = document.createElement('option');
+                opt.value = p.score;
+                opt.textContent = optionText;
+                sel.appendChild(opt);
+            });
+        });
+
+        function calculateMyTeam() {
+            let total = 0.0;
+            selects.forEach(sel => {
+                total += parseFloat(sel.value);
+            });
+            const display = document.getElementById('myScore');
+            display.textContent = (total > 0 ? '+' : '') + total.toFixed(1);
+            
+            if (total >= 0) {
+                display.style.color = '#4CAF50';
+            } else {
+                display.style.color = '#FF5252';
+            }
+        }
     </script>
 </body>
 </html>
@@ -354,5 +427,4 @@ def generate_html(all_player_data, draft_teams, team_colors):
     print(f"Web Page generated: {output_path}")
 
 if __name__ == "__main__":
-    # Test execution
     pass
