@@ -1,64 +1,73 @@
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from collections import defaultdict
 
 def generate_html(all_player_data, draft_teams, team_colors):
-    # --- 1. データ集計 (最終スコア) ---
-    player_stats = defaultdict(lambda: {'total_score': 0.0, 'game_count': 0, 'rank_sum': 0})
-    for _, player_name, score, rank in all_player_data:
+    # --- 1. データ集計 (最終スコア & 直近日差分) ---
+    player_stats = defaultdict(lambda: {'total_score': 0.0, 'game_count': 0, 'rank_sum': 0, 'day_diff': 0.0})
+    team_totals = defaultdict(float)
+    team_day_diffs = defaultdict(float)
+
+    # 日付リストを取得して最新の日付を特定
+    all_dates = sorted(list(set([d[0].split(' ')[0] for d in all_player_data])))
+    last_date = all_dates[-1] if all_dates else None
+
+    for game_title, player_name, score, rank in all_player_data:
+        # トータル集計
         player_stats[player_name]['total_score'] += score
         player_stats[player_name]['game_count'] += 1
         player_stats[player_name]['rank_sum'] += rank
+        
+        # 直近日差分集計
+        game_date = game_title.split(' ')[0]
+        if game_date == last_date:
+            player_stats[player_name]['day_diff'] += score
 
-    team_totals = defaultdict(float)
+    # チーム集計
     for team, members in draft_teams.items():
         for member in members:
             team_totals[team] += player_stats[member]['total_score']
+            team_day_diffs[team] += player_stats[member]['day_diff']
 
     sorted_teams = sorted(team_totals.items(), key=lambda x: x[1], reverse=True)
     
     # --- 2. 時系列データの作成 (グラフ用) ---
-    # 試合ごとにグループ化
     games_map = defaultdict(list)
     for game_title, player_name, score, rank in all_player_data:
         games_map[game_title].append({'name': player_name, 'score': score})
     
-    # 時系列変数の初期化
     history_dates = ['開幕前']
     team_history = {team: [0.0] for team in draft_teams.keys()}
     current_team_scores = {team: 0.0 for team in draft_teams.keys()}
     
-    # 試合順に処理 (games_mapは挿入順＝時系列順と仮定)
+    # 試合順に処理
     for game_title, players in games_map.items():
-        history_dates.append(game_title.split(' ')[0]) # 日付部分だけ簡易抽出
+        history_dates.append(game_title.split(' ')[0])
         
-        # この試合での変動を計算
         for p in players:
-            # どのチームの選手か探す
             for team, members in draft_teams.items():
                 if p['name'] in members:
                     current_team_scores[team] += p['score']
                     break
         
-        # 履歴に追加
         for team in draft_teams.keys():
             team_history[team].append(round(current_team_scores[team], 1))
 
-    # --- 3. サンプルチーム用データ (全選手リスト) ---
+    # --- 3. サンプルチーム用データ ---
     all_players_info = []
-    # すでに集計した player_stats から作成
     for player_name, stats in player_stats.items():
         all_players_info.append({
             'name': player_name,
             'score': round(stats['total_score'], 1)
         })
-    # スコア順にソート (選びやすくするため)
     all_players_info.sort(key=lambda x: x['score'], reverse=True)
 
 
     # --- 4. HTML生成 ---
-    now_str = datetime.now().strftime('%Y/%m/%d %H:%M')
+    # 日本時間 (UTC+9)
+    jst_now = datetime.utcnow() + timedelta(hours=9)
+    now_str = jst_now.strftime('%Y/%m/%d %H:%M')
     
     html = f"""
 <!DOCTYPE html>
@@ -130,6 +139,7 @@ def generate_html(all_player_data, draft_teams, team_colors):
         .team-rank {{ font-size: 1.2rem; font-weight: bold; color: var(--text-sub); }}
         .team-name {{ font-size: 1.5rem; font-weight: bold; margin: 10px 0; }}
         .team-score {{ font-size: 2.5rem; font-weight: bold; text-align: right; }}
+        .team-diff {{ font-size: 1rem; text-align: right; margin-top: -5px; margin-bottom: 10px; }}
         .team-members {{ margin-top: 15px; font-size: 0.9rem; color: var(--text-sub); border-top: 1px solid #333; padding-top: 10px; }}
 
         /* グラフエリア */
@@ -140,35 +150,6 @@ def generate_html(all_player_data, draft_teams, team_colors):
             height: 400px;
             position: relative;
         }}
-
-        /* サンプルチーム (My Team) */
-        .sample-team-container {{
-            background-color: var(--card-bg);
-            border-radius: 12px;
-            padding: 20px;
-        }}
-        .selectors-grid {{
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-bottom: 20px;
-        }}
-        select {{
-            width: 100%;
-            padding: 10px;
-            background-color: #333;
-            color: white;
-            border: 1px solid #555;
-            border-radius: 6px;
-            font-size: 1rem;
-        }}
-        .my-team-result {{
-            text-align: center;
-            border-top: 1px solid #444;
-            padding-top: 20px;
-        }}
-        .my-total-label {{ font-size: 1.2rem; color: var(--text-sub); }}
-        .my-total-score {{ font-size: 3rem; font-weight: bold; color: var(--accent); }}
 
         /* 個人成績テーブル */
         .table-container {{
@@ -183,15 +164,56 @@ def generate_html(all_player_data, draft_teams, team_colors):
         tr:hover {{ background-color: #2a2a2a; }}
         .positive {{ color: #4CAF50; }}
         .negative {{ color: #FF5252; }}
+        .diff-text {{ font-size: 0.8rem; margin-left: 5px; }}
 
-        footer {{ text-align: center; margin-top: 40px; color: var(--text-sub); font-size: 0.8rem; }}
+        /* サンプルチーム (My Team) */
+        .sample-team-container {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            padding: 20px;
+        }
+        .selectors-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .selector-item {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        select {
+            width: 100%;
+            padding: 10px;
+            background-color: #333;
+            color: white;
+            border: 1px solid #555;
+            border-radius: 6px;
+            font-size: 1rem;
+        }
+        .player-score-display {
+            text-align: right;
+            font-size: 0.9rem;
+            min-height: 1.2em;
+            font-weight: bold;
+        }
+        .my-team-result {
+            text-align: center;
+            border-top: 1px solid #444;
+            padding-top: 20px;
+        }
+        .my-total-label { font-size: 1.2rem; color: var(--text-sub); }
+        .my-total-score { font-size: 3rem; font-weight: bold; color: var(--accent); }
+
+        footer { text-align: center; margin-top: 40px; color: var(--text-sub); font-size: 0.8rem; }
     </style>
 </head>
 <body>
     <div class="container">
         <header>
             <h1>M-League Dashboard</h1>
-            <div class="timestamp">Last Updated: {now_str}</div>
+            <div class="timestamp">Last Updated: {now_str} (JST)</div>
         </header>
 
         <!-- 1. チームランキング -->
@@ -209,11 +231,21 @@ def generate_html(all_player_data, draft_teams, team_colors):
         score_class = "positive" if score >= 0 else "negative"
         score_fmt = f"{score:+.1f}"
 
+        # 差分表示
+        diff = team_day_diffs[team]
+        if diff != 0:
+            diff_sign = "+" if diff > 0 else ""
+            diff_color = "#4CAF50" if diff > 0 else "#FF5252"
+            diff_html = f'<span style="color: {diff_color};">({last_date}: {diff_sign}{diff:.1f})</span>'
+        else:
+            diff_html = '<span style="color: #555;">(-)</span>'
+
         html += f"""
                 <div class="team-card" style="border-top-color: {border_color};">
                     <div class="team-rank">#{i}</div>
                     <div class="team-name">{team}</div>
                     <div class="team-score {score_class}">{score_fmt}</div>
+                    <div class="team-diff">{diff_html}</div>
                     <div class="team-members">{members_str}</div>
                 </div>
         """
@@ -230,25 +262,7 @@ def generate_html(all_player_data, draft_teams, team_colors):
             </div>
         </section>
 
-        <!-- 3. サンプルチーム作成 -->
-        <section>
-            <h2>Create Your Sample Team</h2>
-            <div class="sample-team-container">
-                <p style="color: #aaa; margin-bottom: 15px;">好きな選手を4人選んで、合計スコアを計算できます。</p>
-                <div class="selectors-grid">
-                    <select id="p1" onchange="calculateMyTeam()"><option value="0">Select Player 1</option></select>
-                    <select id="p2" onchange="calculateMyTeam()"><option value="0">Select Player 2</option></select>
-                    <select id="p3" onchange="calculateMyTeam()"><option value="0">Select Player 3</option></select>
-                    <select id="p4" onchange="calculateMyTeam()"><option value="0">Select Player 4</option></select>
-                </div>
-                <div class="my-team-result">
-                    <div class="my-total-label">Estimated Total Score</div>
-                    <div class="my-total-score" id="myScore">0.0</div>
-                </div>
-            </div>
-        </section>
-
-        <!-- 4. 個人成績 -->
+        <!-- 3. 個人成績 -->
         <section>
             <h2>Player Stats</h2>
             <div class="table-container">
@@ -259,6 +273,7 @@ def generate_html(all_player_data, draft_teams, team_colors):
                             <th>Player</th>
                             <th>Team</th>
                             <th>Total Score</th>
+                            <th>Last Game</th>
                             <th>Games</th>
                             <th>Avg Rank</th>
                         </tr>
@@ -267,12 +282,10 @@ def generate_html(all_player_data, draft_teams, team_colors):
     """
 
     player_data_list = []
-    # チーム所属選手のみを対象 (configにあるチームのメンバー)
     valid_players = set()
     for players in draft_teams.values():
         valid_players.update(players)
 
-    # グラフやサンプルチーム用に全選手が必要な場合もあるが、Rankingはドラフト選手メインで出す
     for player, stats in player_stats.items():
         if player not in valid_players:
             continue
@@ -280,7 +293,6 @@ def generate_html(all_player_data, draft_teams, team_colors):
         final_score = stats['total_score']
         avg_rank = stats['rank_sum'] / stats['game_count'] if stats['game_count'] > 0 else 0
         
-        # 所属チーム
         team_name = "Unknown"
         for t, members in draft_teams.items():
             if player in members:
@@ -291,6 +303,7 @@ def generate_html(all_player_data, draft_teams, team_colors):
             'name': player,
             'team': team_name,
             'score': final_score,
+            'diff': stats['day_diff'],
             'games': stats['game_count'],
             'avg_rank': avg_rank
         })
@@ -299,12 +312,22 @@ def generate_html(all_player_data, draft_teams, team_colors):
 
     for i, p in enumerate(player_data_list, 1):
         score_class = "positive" if p['score'] >= 0 else "negative"
+        
+        # 個人差分
+        if p['diff'] != 0:
+            diff_sign = "+" if p['diff'] > 0 else ""
+            diff_color = "positive" if p['diff'] > 0 else "negative"
+            diff_html = f'<span class="{diff_color} diff-text">({diff_sign}{p["diff"]:.1f})</span>'
+        else:
+            diff_html = '<span style="color: #555; font-size: 0.8rem;">-</span>'
+
         html += f"""
                         <tr>
                             <td>{i}</td>
                             <td>{p['name']}</td>
                             <td>{p['team']}</td>
                             <td class="{score_class}">{p['score']:+.1f}</td>
+                            <td>{diff_html}</td>
                             <td>{p['games']}</td>
                             <td>{p['avg_rank']:.2f}</td>
                         </tr>
@@ -313,6 +336,36 @@ def generate_html(all_player_data, draft_teams, team_colors):
     html += """
                     </tbody>
                 </table>
+            </div>
+        </section>
+
+        <!-- 4. サンプルチーム作成 (一番下に移動) -->
+        <section>
+            <h2>Create Your Sample Team</h2>
+            <div class="sample-team-container">
+                <p style="color: #aaa; margin-bottom: 15px;">好きな選手を4人選んで、シミュレーションチームの合計スコアを計算できます。</p>
+                <div class="selectors-grid">
+                    <div class="selector-item">
+                        <select id="p1" onchange="calculateMyTeam()"><option value="0">Select Player 1</option></select>
+                        <div id="s1" class="player-score-display"></div>
+                    </div>
+                    <div class="selector-item">
+                        <select id="p2" onchange="calculateMyTeam()"><option value="0">Select Player 2</option></select>
+                        <div id="s2" class="player-score-display"></div>
+                    </div>
+                    <div class="selector-item">
+                        <select id="p3" onchange="calculateMyTeam()"><option value="0">Select Player 3</option></select>
+                        <div id="s3" class="player-score-display"></div>
+                    </div>
+                    <div class="selector-item">
+                        <select id="p4" onchange="calculateMyTeam()"><option value="0">Select Player 4</option></select>
+                        <div id="s4" class="player-score-display"></div>
+                    </div>
+                </div>
+                <div class="my-team-result">
+                    <div class="my-total-label">Estimated Total Score</div>
+                    <div class="my-total-score" id="myScore">0.0</div>
+                </div>
             </div>
         </section>
 
@@ -325,7 +378,6 @@ def generate_html(all_player_data, draft_teams, team_colors):
         // --- データ埋め込み ---
     """
 
-    # JS用: グラフデータ
     html += f"const labels = {json.dumps(history_dates, ensure_ascii=False)};\n"
     html += "const datasets = [\n"
     
@@ -346,7 +398,6 @@ def generate_html(all_player_data, draft_teams, team_colors):
     
     html += "];\n"
 
-    # JS用: 選手データ (サンプルチーム用)
     html += f"const playerMap = {json.dumps(all_players_info, ensure_ascii=False)};\n"
 
     html += """
@@ -390,10 +441,16 @@ def generate_html(all_player_data, draft_teams, team_colors):
             document.getElementById('p3'),
             document.getElementById('p4')
         ];
+        const scoreDisplays = [
+            document.getElementById('s1'),
+            document.getElementById('s2'),
+            document.getElementById('s3'),
+            document.getElementById('s4')
+        ];
 
-        // セレクトボックス初期化
+        // セレクトボックス初期化 (名前だけ表示、スコアは隠す)
         playerMap.forEach(p => {
-            const optionText = `${p.name} (${p.score > 0 ? '+' : ''}${p.score})`;
+            const optionText = p.name; 
             selects.forEach(sel => {
                 const opt = document.createElement('option');
                 opt.value = p.score;
@@ -404,16 +461,28 @@ def generate_html(all_player_data, draft_teams, team_colors):
 
         function calculateMyTeam() {
             let total = 0.0;
-            selects.forEach(sel => {
-                total += parseFloat(sel.value);
+            selects.forEach((sel, index) => {
+                const val = parseFloat(sel.value);
+                const display = scoreDisplays[index];
+                total += val;
+                
+                // 個別スコアの表示切り替え
+                if (sel.selectedIndex > 0) { // 選手が選ばれているとき
+                     const sign = val > 0 ? '+' : '';
+                     display.textContent = `${sign}${val.toFixed(1)}`;
+                     display.style.color = val >= 0 ? '#4CAF50' : '#FF5252';
+                } else {
+                     display.textContent = '';
+                }
             });
-            const display = document.getElementById('myScore');
-            display.textContent = (total > 0 ? '+' : '') + total.toFixed(1);
+            
+            const totalDisplay = document.getElementById('myScore');
+            totalDisplay.textContent = (total > 0 ? '+' : '') + total.toFixed(1);
             
             if (total >= 0) {
-                display.style.color = '#4CAF50';
+                totalDisplay.style.color = '#4CAF50';
             } else {
-                display.style.color = '#FF5252';
+                totalDisplay.style.color = '#FF5252';
             }
         }
     </script>
