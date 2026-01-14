@@ -443,7 +443,24 @@ def run_scraper(log_callback=print):
                         {'autoResizeDimensions': {'dimensions': { 'sheetId': worksheet_ranking.id, 'dimension': 'COLUMNS', 'startIndex': 0, 'endIndex': 7 }}}
                     ]
                 }
-                sh.batch_update(requests_body)
+                
+                # --- Retry Logic for API Calls ---
+                max_retries = 3
+                for attempt in range(max_retries):
+                    try:
+                        sh.batch_update(requests_body)
+                        break
+                    except Exception as e:
+                        if "503" in str(e) or "500" in str(e) or "quota" in str(e).lower():
+                            if attempt < max_retries - 1:
+                                sleep_time = (attempt + 1) * 5
+                                log_callback(f"  API Error ({e}). Retrying in {sleep_time} seconds...")
+                                time.sleep(sleep_time)
+                            else:
+                                log_callback(f"  Failed to resize columns after {max_retries} attempts. Continuing without resize.")
+                        else:
+                            log_callback(f"  Non-retriable error in resize: {e}")
+                            break
                     
                 log_callback("STEP 4: すべてのスプレッドシートの更新が完了しました。\n")
 

@@ -167,23 +167,23 @@ def generate_html(all_player_data, draft_teams, team_colors):
         .diff-text {{ font-size: 0.8rem; margin-left: 5px; }}
 
         /* サンプルチーム (My Team) */
-        .sample-team-container {
+        .sample-team-container {{
             background-color: var(--card-bg);
             border-radius: 12px;
             padding: 20px;
-        }
-        .selectors-grid {
+        }}
+        .selectors-grid {{
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 15px;
             margin-bottom: 20px;
-        }
-        .selector-item {
+        }}
+        .selector-item {{
             display: flex;
             flex-direction: column;
             gap: 5px;
-        }
-        select {
+        }}
+        select {{
             width: 100%;
             padding: 10px;
             background-color: #333;
@@ -191,22 +191,22 @@ def generate_html(all_player_data, draft_teams, team_colors):
             border: 1px solid #555;
             border-radius: 6px;
             font-size: 1rem;
-        }
-        .player-score-display {
+        }}
+        .player-score-display {{
             text-align: right;
             font-size: 0.9rem;
             min-height: 1.2em;
             font-weight: bold;
-        }
-        .my-team-result {
+        }}
+        .my-team-result {{
             text-align: center;
             border-top: 1px solid #444;
             padding-top: 20px;
-        }
-        .my-total-label { font-size: 1.2rem; color: var(--text-sub); }
-        .my-total-score { font-size: 3rem; font-weight: bold; color: var(--accent); }
+        }}
+        .my-total-label {{ font-size: 1.2rem; color: var(--text-sub); }}
+        .my-total-score {{ font-size: 3rem; font-weight: bold; color: var(--accent); }}
 
-        footer { text-align: center; margin-top: 40px; color: var(--text-sub); font-size: 0.8rem; }
+        footer {{ text-align: center; margin-top: 40px; color: var(--text-sub); font-size: 0.8rem; }}
     </style>
 </head>
 <body>
