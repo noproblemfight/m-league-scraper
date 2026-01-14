@@ -68,6 +68,7 @@
         .team-rank { font-size: 1.2rem; font-weight: bold; color: var(--text-sub); }
         .team-name { font-size: 1.5rem; font-weight: bold; margin: 10px 0; }
         .team-score { font-size: 2.5rem; font-weight: bold; text-align: right; }
+        .team-diff { font-size: 1rem; text-align: right; margin-top: -5px; margin-bottom: 10px; }
         .team-members { margin-top: 15px; font-size: 0.9rem; color: var(--text-sub); border-top: 1px solid #333; padding-top: 10px; }
 
         /* グラフエリア */
@@ -78,35 +79,6 @@
             height: 400px;
             position: relative;
         }
-
-        /* サンプルチーム (My Team) */
-        .sample-team-container {
-            background-color: var(--card-bg);
-            border-radius: 12px;
-            padding: 20px;
-        }
-        .selectors-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-        select {
-            width: 100%;
-            padding: 10px;
-            background-color: #333;
-            color: white;
-            border: 1px solid #555;
-            border-radius: 6px;
-            font-size: 1rem;
-        }
-        .my-team-result {
-            text-align: center;
-            border-top: 1px solid #444;
-            padding-top: 20px;
-        }
-        .my-total-label { font-size: 1.2rem; color: var(--text-sub); }
-        .my-total-score { font-size: 3rem; font-weight: bold; color: var(--accent); }
 
         /* 個人成績テーブル */
         .table-container {
@@ -121,6 +93,47 @@
         tr:hover { background-color: #2a2a2a; }
         .positive { color: #4CAF50; }
         .negative { color: #FF5252; }
+        .diff-text { font-size: 0.8rem; margin-left: 5px; }
+
+        /* サンプルチーム (My Team) */
+        .sample-team-container {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            padding: 20px;
+        }
+        .selectors-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .selector-item {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        select {
+            width: 100%;
+            padding: 10px;
+            background-color: #333;
+            color: white;
+            border: 1px solid #555;
+            border-radius: 6px;
+            font-size: 1rem;
+        }
+        .player-score-display {
+            text-align: right;
+            font-size: 0.9rem;
+            min-height: 1.2em;
+            font-weight: bold;
+        }
+        .my-team-result {
+            text-align: center;
+            border-top: 1px solid #444;
+            padding-top: 20px;
+        }
+        .my-total-label { font-size: 1.2rem; color: var(--text-sub); }
+        .my-total-score { font-size: 3rem; font-weight: bold; color: var(--accent); }
 
         footer { text-align: center; margin-top: 40px; color: var(--text-sub); font-size: 0.8rem; }
     </style>
@@ -129,7 +142,7 @@
     <div class="container">
         <header>
             <h1>M-League Dashboard</h1>
-            <div class="timestamp">Last Updated: 2026/01/14 14:51</div>
+            <div class="timestamp">Last Updated: 2026/01/15 00:56 (JST)</div>
         </header>
 
         <!-- 1. チームランキング -->
@@ -141,6 +154,7 @@
                     <div class="team-rank">#1</div>
                     <div class="team-name">チームI</div>
                     <div class="team-score positive">+116.1</div>
+                    <div class="team-diff"><span style="color: #FF5252;">(2026/01/13: -82.0)</span></div>
                     <div class="team-members">瑞原明奈 / 伊達朱里紗 / 白鳥翔 / 阿久津翔太</div>
                 </div>
         
@@ -148,6 +162,7 @@
                     <div class="team-rank">#2</div>
                     <div class="team-name">チームF</div>
                     <div class="team-score positive">+40.7</div>
+                    <div class="team-diff"><span style="color: #555;">(-)</span></div>
                     <div class="team-members">堀慎吾 / 佐々木寿人 / 石井一馬 / 黒沢咲</div>
                 </div>
         
@@ -155,6 +170,7 @@
                     <div class="team-rank">#3</div>
                     <div class="team-name">チームKR</div>
                     <div class="team-score positive">+40.5</div>
+                    <div class="team-diff"><span style="color: #4CAF50;">(2026/01/13: +88.3)</span></div>
                     <div class="team-members">仲林圭 / 渡辺太 / 逢川恵夢 / 渋川難波</div>
                 </div>
         
@@ -162,6 +178,7 @@
                     <div class="team-rank">#4</div>
                     <div class="team-name">チームKB</div>
                     <div class="team-score positive">+33.3</div>
+                    <div class="team-diff"><span style="color: #4CAF50;">(2026/01/13: +86.8)</span></div>
                     <div class="team-members">園田賢 / 鈴木優 / 日向藍子 / 竹内元太</div>
                 </div>
         
@@ -176,25 +193,7 @@
             </div>
         </section>
 
-        <!-- 3. サンプルチーム作成 -->
-        <section>
-            <h2>Create Your Sample Team</h2>
-            <div class="sample-team-container">
-                <p style="color: #aaa; margin-bottom: 15px;">好きな選手を4人選んで、合計スコアを計算できます。</p>
-                <div class="selectors-grid">
-                    <select id="p1" onchange="calculateMyTeam()"><option value="0">Select Player 1</option></select>
-                    <select id="p2" onchange="calculateMyTeam()"><option value="0">Select Player 2</option></select>
-                    <select id="p3" onchange="calculateMyTeam()"><option value="0">Select Player 3</option></select>
-                    <select id="p4" onchange="calculateMyTeam()"><option value="0">Select Player 4</option></select>
-                </div>
-                <div class="my-team-result">
-                    <div class="my-total-label">Estimated Total Score</div>
-                    <div class="my-total-score" id="myScore">0.0</div>
-                </div>
-            </div>
-        </section>
-
-        <!-- 4. 個人成績 -->
+        <!-- 3. 個人成績 -->
         <section>
             <h2>Player Stats</h2>
             <div class="table-container">
@@ -205,6 +204,7 @@
                             <th>Player</th>
                             <th>Team</th>
                             <th>Total Score</th>
+                            <th>Last Game</th>
                             <th>Games</th>
                             <th>Avg Rank</th>
                         </tr>
@@ -216,6 +216,7 @@
                             <td>伊達朱里紗</td>
                             <td>チームI</td>
                             <td class="positive">+222.3</td>
+                            <td><span style="color: #555; font-size: 0.8rem;">-</span></td>
                             <td>19</td>
                             <td>2.21</td>
                         </tr>
@@ -225,6 +226,7 @@
                             <td>石井一馬</td>
                             <td>チームF</td>
                             <td class="positive">+209.5</td>
+                            <td><span style="color: #555; font-size: 0.8rem;">-</span></td>
                             <td>24</td>
                             <td>2.25</td>
                         </tr>
@@ -234,6 +236,7 @@
                             <td>渡辺太</td>
                             <td>チームKR</td>
                             <td class="positive">+190.7</td>
+                            <td><span class="positive diff-text">(+88.3)</span></td>
                             <td>22</td>
                             <td>2.32</td>
                         </tr>
@@ -243,6 +246,7 @@
                             <td>渋川難波</td>
                             <td>チームKR</td>
                             <td class="positive">+175.3</td>
+                            <td><span style="color: #555; font-size: 0.8rem;">-</span></td>
                             <td>19</td>
                             <td>2.32</td>
                         </tr>
@@ -252,6 +256,7 @@
                             <td>竹内元太</td>
                             <td>チームKB</td>
                             <td class="positive">+161.7</td>
+                            <td><span style="color: #555; font-size: 0.8rem;">-</span></td>
                             <td>22</td>
                             <td>2.32</td>
                         </tr>
@@ -261,6 +266,7 @@
                             <td>佐々木寿人</td>
                             <td>チームF</td>
                             <td class="positive">+110.4</td>
+                            <td><span style="color: #555; font-size: 0.8rem;">-</span></td>
                             <td>21</td>
                             <td>2.24</td>
                         </tr>
@@ -270,6 +276,7 @@
                             <td>白鳥翔</td>
                             <td>チームI</td>
                             <td class="positive">+106.7</td>
+                            <td><span style="color: #555; font-size: 0.8rem;">-</span></td>
                             <td>19</td>
                             <td>2.26</td>
                         </tr>
@@ -279,6 +286,7 @@
                             <td>園田賢</td>
                             <td>チームKB</td>
                             <td class="positive">+54.7</td>
+                            <td><span class="positive diff-text">(+77.0)</span></td>
                             <td>22</td>
                             <td>2.41</td>
                         </tr>
@@ -288,6 +296,7 @@
                             <td>鈴木優</td>
                             <td>チームKB</td>
                             <td class="negative">-13.3</td>
+                            <td><span class="positive diff-text">(+9.8)</span></td>
                             <td>20</td>
                             <td>2.65</td>
                         </tr>
@@ -297,6 +306,7 @@
                             <td>黒沢咲</td>
                             <td>チームF</td>
                             <td class="negative">-37.5</td>
+                            <td><span style="color: #555; font-size: 0.8rem;">-</span></td>
                             <td>16</td>
                             <td>2.56</td>
                         </tr>
@@ -306,6 +316,7 @@
                             <td>逢川恵夢</td>
                             <td>チームKR</td>
                             <td class="negative">-52.7</td>
+                            <td><span style="color: #555; font-size: 0.8rem;">-</span></td>
                             <td>16</td>
                             <td>2.50</td>
                         </tr>
@@ -315,6 +326,7 @@
                             <td>瑞原明奈</td>
                             <td>チームI</td>
                             <td class="negative">-68.8</td>
+                            <td><span class="negative diff-text">(-59.2)</span></td>
                             <td>21</td>
                             <td>2.67</td>
                         </tr>
@@ -324,6 +336,7 @@
                             <td>阿久津翔太</td>
                             <td>チームI</td>
                             <td class="negative">-144.1</td>
+                            <td><span class="negative diff-text">(-22.8)</span></td>
                             <td>19</td>
                             <td>2.68</td>
                         </tr>
@@ -333,6 +346,7 @@
                             <td>日向藍子</td>
                             <td>チームKB</td>
                             <td class="negative">-169.8</td>
+                            <td><span style="color: #555; font-size: 0.8rem;">-</span></td>
                             <td>15</td>
                             <td>2.67</td>
                         </tr>
@@ -342,6 +356,7 @@
                             <td>堀慎吾</td>
                             <td>チームF</td>
                             <td class="negative">-241.7</td>
+                            <td><span style="color: #555; font-size: 0.8rem;">-</span></td>
                             <td>19</td>
                             <td>2.95</td>
                         </tr>
@@ -351,12 +366,43 @@
                             <td>仲林圭</td>
                             <td>チームKR</td>
                             <td class="negative">-272.8</td>
+                            <td><span style="color: #555; font-size: 0.8rem;">-</span></td>
                             <td>20</td>
                             <td>2.80</td>
                         </tr>
         
                     </tbody>
                 </table>
+            </div>
+        </section>
+
+        <!-- 4. サンプルチーム作成 (一番下に移動) -->
+        <section>
+            <h2>Create Your Sample Team</h2>
+            <div class="sample-team-container">
+                <p style="color: #aaa; margin-bottom: 15px;">好きな選手を4人選んで、シミュレーションチームの合計スコアを計算できます。</p>
+                <div class="selectors-grid">
+                    <div class="selector-item">
+                        <select id="p1" onchange="calculateMyTeam()"><option value="0">Select Player 1</option></select>
+                        <div id="s1" class="player-score-display"></div>
+                    </div>
+                    <div class="selector-item">
+                        <select id="p2" onchange="calculateMyTeam()"><option value="0">Select Player 2</option></select>
+                        <div id="s2" class="player-score-display"></div>
+                    </div>
+                    <div class="selector-item">
+                        <select id="p3" onchange="calculateMyTeam()"><option value="0">Select Player 3</option></select>
+                        <div id="s3" class="player-score-display"></div>
+                    </div>
+                    <div class="selector-item">
+                        <select id="p4" onchange="calculateMyTeam()"><option value="0">Select Player 4</option></select>
+                        <div id="s4" class="player-score-display"></div>
+                    </div>
+                </div>
+                <div class="my-team-result">
+                    <div class="my-total-label">Estimated Total Score</div>
+                    <div class="my-total-score" id="myScore">0.0</div>
+                </div>
             </div>
         </section>
 
@@ -452,10 +498,16 @@ const playerMap = [{"name": "永井孝典", "score": 536.3}, {"name": "下石戟
             document.getElementById('p3'),
             document.getElementById('p4')
         ];
+        const scoreDisplays = [
+            document.getElementById('s1'),
+            document.getElementById('s2'),
+            document.getElementById('s3'),
+            document.getElementById('s4')
+        ];
 
-        // セレクトボックス初期化
+        // セレクトボックス初期化 (名前だけ表示、スコアは隠す)
         playerMap.forEach(p => {
-            const optionText = `${p.name} (${p.score > 0 ? '+' : ''}${p.score})`;
+            const optionText = p.name; 
             selects.forEach(sel => {
                 const opt = document.createElement('option');
                 opt.value = p.score;
@@ -466,16 +518,28 @@ const playerMap = [{"name": "永井孝典", "score": 536.3}, {"name": "下石戟
 
         function calculateMyTeam() {
             let total = 0.0;
-            selects.forEach(sel => {
-                total += parseFloat(sel.value);
+            selects.forEach((sel, index) => {
+                const val = parseFloat(sel.value);
+                const display = scoreDisplays[index];
+                total += val;
+                
+                // 個別スコアの表示切り替え
+                if (sel.selectedIndex > 0) { // 選手が選ばれているとき
+                     const sign = val > 0 ? '+' : '';
+                     display.textContent = `${sign}${val.toFixed(1)}`;
+                     display.style.color = val >= 0 ? '#4CAF50' : '#FF5252';
+                } else {
+                     display.textContent = '';
+                }
             });
-            const display = document.getElementById('myScore');
-            display.textContent = (total > 0 ? '+' : '') + total.toFixed(1);
+            
+            const totalDisplay = document.getElementById('myScore');
+            totalDisplay.textContent = (total > 0 ? '+' : '') + total.toFixed(1);
             
             if (total >= 0) {
-                display.style.color = '#4CAF50';
+                totalDisplay.style.color = '#4CAF50';
             } else {
-                display.style.color = '#FF5252';
+                totalDisplay.style.color = '#FF5252';
             }
         }
     </script>
